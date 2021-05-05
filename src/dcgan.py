@@ -16,38 +16,73 @@ DATA_DIRECTORY = '../data/celebA/images'
 
 
 class DCGAN(keras.Model):
-    def __init__(self, input_dim, name):
-        super(DCGAN, self).__init__(name=name)
-
-        self.generator(input_dim)
-
-    def generator(self, input_dim):
-        # take care of input z (!!)
-
-        # Functional API for more flexibility
-        inputs = keras.Input(shape=input_dim)
-        # NOTE: Number of filters should be adapted to each dataset <- FIND WAY TO DO IT AUTOMATICALLY
-        genx = keras.layers.Convolution2DTranspose()(inputs)
-        # conv2d
-        # leaky relu
-        # conv2d
-        # leaky relu
-        # conv2d
-        # leaky relu
-        # conv2d
-        # leaky relu
-        # conv2d
-        # leaky relu
-        # sigmoid
     '''
-    def discriminator(self):
-        # relu
-        # deconv2d
-        # deconv2d
-        # deconv2d
-        # deconv2d
-        # tanh
+        Guidelines from https://arxiv.org/pdf/1511.06434.pdf
+            • Replace any pooling layers with strided convolutions (discriminator) and fractional-strided convolutions (generator).
+            • Use batchnorm in both the generator and the discriminator.
+            • Remove fully connected hidden layers for deeper architectures.
+            • Use ReLU activation in generator for all layers except for the output, which uses Tanh.
+            • Use LeakyReLU activation in the discriminator for all layers.
 
+    '''
+
+    def __init__(self, input_dim, num_layers_gen, num_layers_disc, name, batchNorm=True):
+        super(DCGAN, self).__init__(name=name)
+        self.isBatch = batchNorm
+
+        # This is probaly the best place to call both generator and discriminator
+        gen = self.generator(input_dim, num_layers_gen)
+
+    def generator(self, input_dim, num_layers_gen):
+        '''
+        Generator that allows us to define the number of layers and number of filters according to the data at hand
+
+        Parameters
+        ----------
+
+        input_dim : int
+            The number of input dimensions, that is, the number of nodes in the first layer of the encoder and the
+            last, output layer of the decoder.
+
+        num_layers_gen : int
+            The number of layers for the generator model. This will allow the user to easily adapt the network architecture to the
+            data at hand.
+
+        num_layers_disc : int
+            The number of layers for the discriminator model. This will allow the user to easily adapt the network architecture to the
+            data at hand.
+
+        name : str
+            The name of the model.
+        '''
+        gen_model = keras.Sequential()
+        # Didn't have time to test this (!!!!) <- Number of filter is assumed to be half of the previous layer (except the output, which should be 1)
+        for i in range(num_layers_gen-2):
+            gen_model.add(keras.layers.Convolution2DTranspose())
+            if self.isBatch:
+                gen_model.add(keras.layers.BatchNormalization())
+            gen_model.add(keras.layers.ReLU())
+
+        # Last layer
+        gen_model.add(keras.layers.Convolution2DTranspose())
+        if self.isBatch:
+            gen_model.add(keras.layers.BatchNormalization())
+            gen_model.add(keras.layers.ReLU())
+        gen_model.add(keras.layers.Activation('tanh'))
+
+        return gen_model
+
+    def discriminator(self):
+        disc = keras.Sequential()
+        # deconv2d
+        # leaky relu
+        # deconv2d
+        # leaky relu
+        # deconv2d
+        # leaky relu
+        # deconv2d
+        # leaky relu
+    '''
     def train(self):
 
     def save(self):
