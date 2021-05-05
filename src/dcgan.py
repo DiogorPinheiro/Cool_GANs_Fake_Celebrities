@@ -10,7 +10,7 @@ import os
 os.environ['TFF_CPP_MIN_LOG_LEVEL'] = '2'  # minimize TF annoying messages
 
 
-#print(tf.__version__)   # Check your TF version (should be 2.4.0)
+# print(tf.__version__)   # Check your TF version (should be 2.4.0)
 
 DATA_DIRECTORY = '../data/celebA/images'
 
@@ -58,6 +58,7 @@ class DCGAN(keras.Model):
         gen_model = keras.Sequential()
         # Didn't have time to test this (!!!!) <- Number of filter is assumed to be half of the previous layer (except the output, which should be 1)
         for i in range(num_layers_gen-2):
+            # add num filters and stuff
             gen_model.add(keras.layers.Convolution2DTranspose())
             if self.isBatch:
                 gen_model.add(keras.layers.BatchNormalization())
