@@ -83,7 +83,8 @@ if __name__ == "__main__":
         print("MNIST Data Shape -> {}".format(X_train.shape))
 
         # Normalize data to [-1,1] because we'll use tanh activation function
-        X_train = X_train.astype(np.float)
+        X_train = X_train.astype(np.float32)
+
         X_train /= 255      # [0,1]
         X_train = (X_train-0.5)/0.5  # [-1,1]
 
