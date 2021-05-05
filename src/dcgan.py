@@ -10,7 +10,7 @@ import os
 os.environ['TFF_CPP_MIN_LOG_LEVEL'] = '2'  # minimize TF annoying messages
 
 
-# print(tf.__version__)   # Check your TF version (should be 2.4.0)
+#print(tf.__version__)   # Check your TF version (should be 2.4.0)
 
 DATA_DIRECTORY = '../data/celebA/images'
 
@@ -118,6 +118,8 @@ if __name__ == "__main__":
         print("MNIST Data Shape -> {}".format(X_train.shape))
 
         # Normalize data to [-1,1] because we'll use tanh activation function
+        X_train = X_train.astype(np.float32)
+
         X_train /= 255      # [0,1]
         X_train = (X_train-0.5)/0.5  # [-1,1]
 
