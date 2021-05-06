@@ -1,0 +1,19 @@
+generator:
+  pr:
+    filters: 1024
+  h1:
+    filters: 512
+    strides: [2,2]
+    kernel_size: [5,5]
+  h2:
+    filters: 256
+    strides: [2,2]
+    kernel_size: [5,5]
+  h3:
+    filters: 128
+    strides: [2,2]
+    kernel_size: [5,5]
+  h4:
+    filters: 3
+    strides: [2,2]
+    kernel_size: [5,5]
