@@ -357,7 +357,42 @@ class DCGAN(keras.Model):
         '''
         return keras.optimizers.Adam(learning_rate,beta_1=beta1), keras.optimizers.Adam(learning_rate,beta_1=beta1)
 
-    def train_step(self, images, batch_size, noise_dim, old_generator, old_discriminator, learning_rate, beta_1):
+    def step(self, images, batch_size, noise_dim, old_generator, old_discriminator, learning_rate, beta_1):
+        '''
+        Method for running one single training step
+        
+        Parameters
+        ----------
+        images : tensor
+            One batch of data
+
+        batch_size : int
+            batchsize
+        
+        noise_dim : int
+            size of noise dimension
+
+        old_generator : tf object
+            generator from previous step
+
+        old_discriminator : tf object
+            discriminator from previous step
+
+        learning_rate : float
+            learning rate in the optimizer
+
+        beta_1 : float
+            beta parameter in the optimizer
+
+        Returns
+        -------
+        generator
+            the generator of the model at the current iteration 
+
+        discriminator
+            the discriminator of the model at the current iteration 
+
+        '''
         noise = tf.random.normal([batch_size, noise_dim])
         
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
@@ -380,10 +415,43 @@ class DCGAN(keras.Model):
         return generator, discriminator
 
     def fit(self, data, epochs, batch_size, noise_dim, old_generator, old_discriminator, seed, learning_rate, beta_1):
+        '''
+        Method for fitting the model
+        
+        Parameters
+        ----------
+        data : PrefectDataset
+            The whole dataset
+
+        epochs : int
+            number of epochs to be ran
+        
+        noise_dim : int
+            size of noise dimension
+
+        old_generator : tf object
+            generator from previous step
+
+        old_discriminator : tf object
+            discriminator from previous step
+
+        seed : tf object
+            seed to produce the first random image
+
+        learning_rate : float
+            learning rate in the optimizer
+
+        beta_1 : float
+            beta parameter in the optimizer
+
+        Returns
+        -------
+        None
+        '''
         for epoch in range(epochs):
             start = time.time()
             for image_batch in data:
-                new_generator, new_discriminator = self.train_step(image_batch, batch_size, noise_dim, old_generator, old_discriminator, learning_rate, beta_1)
+                new_generator, new_discriminator = self.step(image_batch, batch_size, noise_dim, old_generator, old_discriminator, learning_rate, beta_1)
                 old_generator = new_generator
                 old_discriminator = new_generator
 
@@ -393,6 +461,24 @@ class DCGAN(keras.Model):
 
 
     def gen_imgs(self, model, epoch, test_input):
+        '''
+        Method for generating images from the model at every epoch
+        
+        Parameters
+        ----------
+        model : tf object
+            the generator of the model at the current epoch
+
+        epochs : int
+            number of epochs to be ran
+        
+        test_input : tf object
+            seed to produce the first random image
+
+        Returns
+        -------
+        None
+        '''
         preds = model(test_input, training=False)
 
         fig = plt.figure(figsize=(4,4))
@@ -430,8 +516,8 @@ if __name__ == "__main__":
     dataset_name = "mnist"
     batch_size = 256
 
+    # get data from pipeline
     dataset, dataset_size = data_pipeline_load(dataset_name, **kwargs)
-        
     dataset = data_pipeline_pre_train(dataset, dataset_size, batch_size)
 
     # Tf example on mnist
@@ -441,13 +527,14 @@ if __name__ == "__main__":
         except yaml.YAMLError as exc:
             print(exc)
 
+    # dims
     input_shape = (100,)
     output_shape = (28, 28, 1)
 
+    # parameter values
     noise_dim = 100
     num_examples_to_generate = 16
     seed = tf.random.normal([num_examples_to_generate, noise_dim])
-    
     epochs = 50
     learning_rate = 0.0002
     beta_1 = 0.5
