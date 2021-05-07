@@ -495,7 +495,7 @@ class DCGAN(keras.Model):
         anim_file = gif_name + '.gif'
 
         with imageio.get_writer(anim_file, mode='I') as writer:
-            filenames = glob.glob('image*.png')
+            filenames = glob.glob('imgs/image*.png')
             filenames = sorted(filenames)
             for filename in filenames:
                 image = imageio.imread(filename)
@@ -521,7 +521,7 @@ if __name__ == "__main__":
     dataset = data_pipeline_pre_train(dataset, dataset_size, batch_size)
 
     # Tf example on mnist
-    with open("config_tf_example.yml", 'r') as stream:
+    with open("../notebooks/config_tf_example.yml", 'r') as stream:
         try:
             cfg = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
@@ -535,7 +535,7 @@ if __name__ == "__main__":
     noise_dim = 100
     num_examples_to_generate = 16
     seed = tf.random.normal([num_examples_to_generate, noise_dim])
-    epochs = 50
+    epochs = 2
     learning_rate = 0.0002
     beta_1 = 0.5
 
