@@ -668,6 +668,7 @@ if __name__ == "__main__":
     # original shape = (218, 178, 3)
     resize_to = (64, 64)
 
+    # Data cant be stored in repo, insert your own data dirr
     data_directory = "C:/Users/Jakob/OneDrive/Skrivbord/Skrivbord/DL_proj/celeba_gan/img_align_celeba"
     
     kwargs = {"data_directory": data_directory, 
