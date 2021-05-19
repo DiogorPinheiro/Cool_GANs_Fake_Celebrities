@@ -114,7 +114,7 @@ def data_pipeline_pre_process(dataset, normalizer, resize_to):
     return dataset
 
 
-def data_pipeline_pre_train(dataset, dataset_size, batch_size):
+def data_pipeline_pre_train(dataset, dataset_size, batch_size, fid_split):
     """ Create optimized pre-training data pipeline. Shuffle, batch, and pre-fetch dataset.
     Adapted from: https://cs230.stanford.edu/blog/datapipeline/,
     https://www.tensorflow.org/tutorials/load_data/images#standardize_the_data
@@ -127,6 +127,8 @@ def data_pipeline_pre_train(dataset, dataset_size, batch_size):
         Number of instances in dataset. For shuffling.
     batch_size : int 
         Batch size.
+    fid_split : float
+      Percentage of dataset to use for FID score.
     
     Returns
     -------
@@ -142,13 +144,23 @@ def data_pipeline_pre_train(dataset, dataset_size, batch_size):
     Dataset is now pre-processed, shuffled, batched and pre-fetched yet.
     buffer_size (dataset_size) >= batch_size to get an uniform shuffle, right? idk
     """
-    print(f"dataset: {len(dataset)}")
-    # dont shuffe here as it makes training extremely slow
+    # fid-train split
+    assert 0.0 <= fid_split <= 1.0
+    fid_size = int(fid_split * dataset_size)
+    dataset_size = dataset_size - fid_size
+    dataset_fid = dataset.take(fid_size)
+    dataset = dataset.skip(fid_size)
+    print(f"dataset: {len(dataset)}, dataset_fid: {len(dataset_fid)}")
+  
+    # dont shuffe here as it makes training extremely slow (already shuffled)
     # do batching and pre-fetch here, dataset is already shuffled in load
     # functions
     dataset = dataset.batch(batch_size)
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-    return dataset
+    dataset_fid = dataset_fid.batch(batch_size)
+    dataset_fid = dataset_fid.prefetch(tf.data.experimental.AUTOTUNE)
+    
+    return dataset, dataset_size, dataset_fid, fid_size
 
 
 def resize_image(image, resize_to):

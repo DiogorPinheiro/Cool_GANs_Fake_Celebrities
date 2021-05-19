@@ -10,6 +10,11 @@ import imageio
 import time
 import io
 import gdown
+from numpy.random import randint
+from scipy.linalg import sqrtm
+from keras.applications.inception_v3 import InceptionV3
+from keras.applications.inception_v3 import preprocess_input
+from skimage.transform import resize
 from tensorflow.keras.datasets import mnist
 from datetime import datetime
 from tensorflow import keras
@@ -25,6 +30,17 @@ from shutil import copy
 from datapipeline import *
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
+from numpy import cov
+from numpy import trace
+from numpy import iscomplexobj
+from numpy import asarray
+from numpy.random import randint
+from scipy.linalg import sqrtm
+from tqdm import tqdm
+from keras.applications.inception_v3 import InceptionV3
+from keras.applications.inception_v3 import preprocess_input
+from keras.datasets.mnist import load_data
+from skimage.transform import resize
 
 # To install tensorflow_docs pip install -q git+https://github.com/tensorflow/docs
 
@@ -478,14 +494,64 @@ def train_step(images, batch_size, latent_dim, generator, discriminator,
     grads = tape.gradient(gen_loss, generator.trainable_weights)
     generator_optimizer.apply_gradients(zip(grads, generator.trainable_weights))
 
-    return gen_loss, disc_loss
+    return gen_loss, disc_loss  
+
+def fid_step(batch_size, latent_dim, generator, images, fid_scorer):
+    """ FID step. Exectued for every batch in the FID test set if wanted.
+
+    Parameters
+    ----------
+    batch_size : int
+      The batch size.
+    latent_dim : int
+      The latent vector dimension of the generator.
+    generator : keras.Model
+      The generator model.
+    images : tf.Tensor
+      Image batch of shape (batch_size, width, height, channels).
+      Note that the image batch is normalized, so the FID scorer takes care of 
+      rescaling them to 0-255 before feeding them into the Inception model.
+    fid_scorer : FID
+      FID score computer.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    None
+
+    Notes
+    -----
+    Note that the image batch is normalized, so the FID scorer takes care of 
+    rescaling them to 0-255 before feeding them into the Inception model.
+    Also note that the FID can only be computed for images with 3 channels.
+    """
+    # Sample random points in the latent space
+    random_latent_vectors = tf.random.normal(shape=(batch_size, latent_dim))
+
+    # Decode them to fake images
+    generated_images = generator(random_latent_vectors, training=False)
+    
+    # convert tf.Tensor image batch to np.ndarray
+    generated_images_np = generated_images.numpy()
+    images_np = images.numpy()
+    
+    # compute the fid score (apply_rescaler has to be true if the images
+    # are pre-processed with a normalizer)
+    fid_score = fid_scorer(generated_images_np, images_np, apply_rescaler=True)
+
+    return fid_score
 
 def train(dataset, gen_loss_metric, disc_loss_metric,
           train_summary_writer, gen_summary_writer,
           epochs, batch_size, latent_dim, generator, discriminator, 
           cross_entropy, generator_optimizer, discriminator_optimizer, 
-          seed, viz_save_path, checkpoint_prefix, dataset_name, rescaler, ckpt_save_epoch=10):
-    """ Train step. Exectued for every batch.
+          seed, viz_save_path, checkpoint_prefix, dataset_name, dataset_size,
+          rescaler, ckpt_save_epoch, **fid_dict):
+    """ Train loop for training a DCGAN model with a generator and a 
+    discriminator.
 
     Parameters
     ----------
@@ -527,10 +593,20 @@ def train(dataset, gen_loss_metric, disc_loss_metric,
       For checkpoints.
     dataset_name : str
       The dataset name. Herer for visualization reasons.
+    dataset_size : int
+      The datast size, here for tqdm stuff.
     rescaler : tf.keras.Preprocessing
       Invese of normlaizer for images, here for visualization reasons.
     ckpt_save_epoch : int
       Checkpoint save every n epochs.
+    fid_dict : dict
+      Contains stuff for computing FID if needed, such as:
+      dataset_fid : tf.Dataset, Same as dataset, but only for FID.
+      fid_size : int, Number of images for FID computation.
+      fid_score_metric : keras.Metrics, Disciminator loss metric for logging 
+      and averaging over batches for an epoch estimate.
+      fid_scorer : FID, fid scorer object, has image rescaler with the inverse 
+      rule of the image dataset normalizer
 
     Returns
     -------
@@ -544,20 +620,55 @@ def train(dataset, gen_loss_metric, disc_loss_metric,
     -----
     None
     """
+    # if fid_dict is not empty
+    # retrive here as it is used over epochs
+    if fid_dict:
+      fid_score_metric = fid_dict["fid_score_metric"]
+    
     for epoch in range(epochs):
+      print(f"epoch: {epoch+1}/{epochs}...")
       start = time.time()
 
+      # tqdm stuff for loading bars
+      pbar = tqdm(total=int(dataset_size/batch_size))
+      pbar.set_description("batches")
+
+      # mini-batch steps
       for image_batch in dataset:
         gen_loss, disc_loss = \
           train_step(image_batch, batch_size, latent_dim, 
                     generator, discriminator, cross_entropy,
                     generator_optimizer, discriminator_optimizer)
-
-          
       
-        # Update metrics
+        # Update training metrics
         gen_loss_metric.update_state(gen_loss)
         disc_loss_metric.update_state(disc_loss)
+
+        # tqdm render
+        pbar.update(1)
+        pbar.set_description(f"batches (g_l: {gen_loss_metric.result():.4f}, "
+          f"d_l: {disc_loss_metric.result():.4f})")
+      
+      pbar.close()
+
+      # if fid_dict is not empty
+      # do mini-batch-based FID comptation on FID test set
+      if fid_dict:
+        dataset_fid = fid_dict["dataset_fid"]
+        fid_size = fid_dict["fid_size"]
+        fid_scorer = fid_dict["fid_scorer"]
+
+        pbar = tqdm(total=int(fid_size/batch_size))
+        pbar.set_description("fid batches")
+        
+        for image_batch in dataset_fid:
+          fid_score = fid_step(batch_size, latent_dim, generator, image_batch, 
+                              fid_scorer)
+          fid_score_metric.update_state(fid_score)
+          pbar.update(1)
+          pbar.set_description(f"fid batches (fid: {fid_score_metric.result():.4f}")
+        
+        pbar.close()
 
       # Save the model every ckpt_save_epoch epochs
       if_ckpt_save_epoch = (epoch + 1) % ckpt_save_epoch == 0
@@ -581,18 +692,29 @@ def train(dataset, gen_loss_metric, disc_loss_metric,
       with train_summary_writer.as_default():
         tf.summary.scalar('gen_loss_metric', gen_loss_metric.result(), step=epoch)
         tf.summary.scalar('disc_loss_metric', disc_loss_metric.result(), step=epoch)
+        if fid_dict:
+          tf.summary.scalar('fid_score_metric', fid_score_metric.result(), step=epoch)
       
       # viz images (have to do it here, otherwise can break tensorboard)
       plt.show()
 
       # show training info
-      print(f"{epoch+1}/{epochs} ({time.time()-start:.4} s):\n"
-            f"gen_loss_metric={gen_loss_metric.result()}, disc_loss_metric={disc_loss_metric.result()}")
+      if fid_dict:
+        print(f"{epoch+1}/{epochs} ({time.time()-start:.4} s):\n"
+              f"gen_loss_metric={gen_loss_metric.result()},\n"
+              f"disc_loss_metric={disc_loss_metric.result()},\n" 
+              f"fid_score_metric={fid_score_metric.result()}\n")
+      else:
+          print(f"{epoch+1}/{epochs} ({time.time()-start:.4} s):\n"
+              f"gen_loss_metric={gen_loss_metric.result()},\n"
+              f"disc_loss_metric={disc_loss_metric.result()}\n")
       
       # Reset metrics every epoch
-      # is this needed?
+      # is this needed? -> yes
       gen_loss_metric.reset_states()
       disc_loss_metric.reset_states()
+      if fid_dict:
+        fid_score_metric.reset_states()
 
     # Generate after the final epoch
     display.clear_output(wait=True)
@@ -602,7 +724,7 @@ def train(dataset, gen_loss_metric, disc_loss_metric,
                             viz_save_path,
                             dataset_name,
                             rescaler)
-  
+    
 
 def generate_and_save_images(model, epoch, test_input, viz_save_path, dataset_name, rescaler):
     # source: https://www.tensorflow.org/tutorials/generative/dcgan
@@ -643,6 +765,111 @@ def plot_to_image(figure):
     image = tf.expand_dims(image, 0)
     return image
 
+# scale an array of images to a new size
+def scale_images(images, new_shape):
+    images_list = list()
+    for image in images:
+      # resize with nearest neighbor interpolation
+      new_image = resize(image, new_shape, 0)
+      # store
+      images_list.append(new_image)
+    return asarray(images_list)
+ 
+# calculate frechet inception distance
+def calculate_fid(model, images1, images2):
+    # calculate activations
+    act1 = model.predict(images1)
+    act2 = model.predict(images2)
+    # calculate mean and covariance statistics
+    mu1, sigma1 = act1.mean(axis=0), cov(act1, rowvar=False)
+    mu2, sigma2 = act2.mean(axis=0), cov(act2, rowvar=False)
+    # calculate sum squared difference between means
+    ssdiff = numpy.sum((mu1 - mu2)**2.0)
+    # calculate sqrt of product between cov
+    covmean = sqrtm(sigma1.dot(sigma2))
+    # check and correct imaginary numbers from sqrt
+    if iscomplexobj(covmean):
+      covmean = covmean.real
+    # calculate score
+    fid = ssdiff + trace(sigma1 + sigma2 - 2.0 * covmean)
+    return fid
+
+class FID():
+  def __init__(self, rescaler):
+    # image rescaler
+    self.rescaler = rescaler
+    # prepare the inception v3 model
+    self.input_shape = (299,299,3)
+    self.model = InceptionV3(include_top=False, pooling='avg', 
+                             input_shape=(299,299,3))
+
+  def scale_images(self, images):
+    # scale an array of images to a new size
+
+    images_list = list()
+    for image in images:
+      # resize with nearest neighbor interpolation
+      new_image = resize(image, self.input_shape, 0)
+      # store
+      images_list.append(new_image)
+    
+    return asarray(images_list)
+
+  def calculate_fid(self, images1, images2):
+    # calculate frechet inception distance
+
+    # calculate activations
+    act1 = self.model.predict(images1)
+    act2 = self.model.predict(images2)
+    # calculate mean and covariance statistics
+    mu1, sigma1 = act1.mean(axis=0), cov(act1, rowvar=False)
+    mu2, sigma2 = act2.mean(axis=0), cov(act2, rowvar=False)
+    # calculate sum squared difference between means
+    ssdiff = numpy.sum((mu1 - mu2)**2.0)
+    # calculate sqrt of product between cov
+    covmean = sqrtm(sigma1.dot(sigma2))
+    # check and correct imaginary numbers from sqrt
+    if iscomplexobj(covmean):
+      covmean = covmean.real
+    # calculate score
+    fid = ssdiff + trace(sigma1 + sigma2 - 2.0 * covmean)
+    return fid
+
+  def rescale_images(self, images):
+    images_tf = tf.convert_to_tensor(images, np.float32)
+    images_tf = tf.map_fn(fn=self.rescaler, elems=images_tf)
+    return images_tf.numpy()
+
+  def __call__(self, images1, images2, apply_rescaler):
+    # images1 and images2 of shape (batch_size, original_width, original_height, dim)
+    # and of type np.ndarray
+    assert isinstance(images1, np.ndarray)
+    assert isinstance(images2, np.ndarray)
+
+    # convert integer to floating point values
+    images1 = images1.astype('float32')
+    images2 = images2.astype('float32')
+    
+    # rescale images fom -1.0-1.0 or 0.0-1.0 to 0.0-255.0 if needed
+    if apply_rescaler:
+      images1 = self.rescale_images(images1)
+      images2 = self.rescale_images(images2)
+
+    # resize images
+    images1 = self.scale_images(images1)
+    images2 = self.scale_images(images2)
+    #print('Scaled', images1.shape, images2.shape)
+    
+    # pre-process images for Inception
+    images1 = preprocess_input(images1)
+    images2 = preprocess_input(images2)
+
+    # fid between images1 and images1
+    fid = self.calculate_fid(images1, images2)
+    #print('FID (in func): %.3f' % fid)
+
+    return fid
+
 if __name__ == "__main__":
     # Contributed: Diogo Pinheiro, Jakob Lindén, Márk Csizmadia, Patrick Jonsson
 
@@ -666,7 +893,7 @@ if __name__ == "__main__":
 
     # load dataset (shuffled, pre-processed, batched, and pre-fetched)
     # original shape = (218, 178, 3)
-    resize_to = (64, 64)
+    resize_to = (32, 32)
 
     # Data cant be stored in repo, insert your own data dirr
     data_directory = "C:/Users/Jakob/OneDrive/Skrivbord/Skrivbord/DL_proj/celeba_gan/img_align_celeba"
@@ -678,7 +905,7 @@ if __name__ == "__main__":
     dataset_name = "faces"
     batch_size = 64
     dataset, dataset_size = data_pipeline_load(dataset_name, **kwargs)    
-    dataset = data_pipeline_pre_train(dataset, dataset_size, batch_size)
+    dataset, dataset_size, dataset_fid, fid_size = data_pipeline_pre_train(dataset, dataset_size, batch_size, fid_split=0.1)
 
     # tensorboard logs are saved here
     current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -708,9 +935,9 @@ if __name__ == "__main__":
     # make generator and discriminator
     latent_dim = 100
     input_shape = (latent_dim,)
-    output_shape = (64, 64, 3)
-    generator = make_generator_1_faces(input_shape, output_shape)
-    discriminator = make_discriminator_1_faces(output_shape)
+    output_shape = (32, 32, 3)
+    generator = make_generator_2_faces(input_shape, output_shape)
+    discriminator = make_discriminator_2_faces(output_shape)
 
     # make optimizers
     generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
@@ -738,14 +965,48 @@ if __name__ == "__main__":
     # You will reuse this seed overtime (so it's easier)
     # to visualize progress in the animated GIF)
     seed = tf.random.normal([num_examples_to_generate, latent_dim])
+
+    # FID
+    use_fid = True
+
+    if use_fid:
+      fid_scorer = FID(rescaler=rescaler_faces)
+      fid_score_metric = tf.keras.metrics.Mean('fid_score_metric', dtype=tf.float32)
+      fid_dict = {
+          "fid_scorer": fid_scorer, 
+          "fid_score_metric": fid_score_metric,
+          "dataset_fid": dataset_fid,
+          "fid_size": fid_size
+          }
+      
+    else:
+      fid_dict = {}
+
+    ckpt_save_epoch = 1
+
     # train
-    train(dataset, gen_loss_metric, disc_loss_metric,
-            train_summary_writer, gen_summary_writer,
-            epochs, batch_size, latent_dim, generator, discriminator,
-            cross_entropy, generator_optimizer, discriminator_optimizer, 
-            seed, viz_save_path, checkpoint_prefix, dataset_name, rescaler_faces, ckpt_save_epoch=1)
+    train(dataset=dataset,
+          gen_loss_metric=gen_loss_metric, 
+          disc_loss_metric=disc_loss_metric, 
+          train_summary_writer=train_summary_writer, 
+          gen_summary_writer=gen_summary_writer, 
+          epochs=epochs, 
+          batch_size=batch_size, 
+          latent_dim=latent_dim, 
+          generator=generator, 
+          discriminator=discriminator,
+          cross_entropy=cross_entropy, 
+          generator_optimizer=generator_optimizer, 
+          discriminator_optimizer=discriminator_optimizer, 
+          seed=seed, 
+          viz_save_path=viz_save_path, 
+          checkpoint_prefix=checkpoint_prefix, 
+          dataset_name=dataset_name,
+          dataset_size=dataset_size,
+          rescaler=rescaler_faces, 
+          ckpt_save_epoch=ckpt_save_epoch,
+          **fid_dict)
 
     # save full models
     generator.save(saved_generator_path)
     discriminator.save(saved_discriminator_path)
-
