@@ -10,6 +10,7 @@ import imageio
 import time
 import io
 import gdown
+import numpy
 from numpy.random import randint
 from scipy.linalg import sqrtm
 from keras.applications.inception_v3 import InceptionV3
@@ -102,15 +103,15 @@ def make_generator_1_faces(input_shape, output_shape):
     assert tuple(h.shape) == (None, 4, 4, 1024)
 
     h = layers.Conv2DTranspose(filters=512, kernel_size=(5, 5), 
-                                      strides=(2, 2), padding='same', 
-                                      use_bias=False, name="g_h1")(h)
+                                     strides=(2, 2), padding='same', 
+                                     use_bias=False, name="g_h1")(h)
     h = layers.BatchNormalization(name="g_h1_bn")(h)
     h = layers.LeakyReLU(name="g_h1_a")(h)
     assert tuple(h.shape) == (None, 8, 8, 512)
 
     h = layers.Conv2DTranspose(filters=256, kernel_size=(5, 5), 
-                                      strides=(2, 2), padding='same', 
-                                      use_bias=False, name="g_h2")(h)
+                                     strides=(2, 2), padding='same', 
+                                     use_bias=False, name="g_h2")(h)
     h = layers.BatchNormalization(name="g_h2_bn")(h)
     h = layers.LeakyReLU(name="g_h2_a")(h)
     assert tuple(h.shape) == (None, 16, 16, 256)
@@ -118,16 +119,16 @@ def make_generator_1_faces(input_shape, output_shape):
 
 
     h = layers.Conv2DTranspose(filters=128, kernel_size=(5, 5), 
-                                      strides=(2, 2), padding='same', 
-                                      use_bias=False, name="g_h3")(h)
+                                     strides=(2, 2), padding='same', 
+                                     use_bias=False, name="g_h3")(h)
     h = layers.BatchNormalization(name="g_h3_bn")(h)
     h = layers.LeakyReLU(name="g_h3_a")(h)
     assert tuple(h.shape) == (None, 32, 32, 128)
 
     h = layers.Conv2DTranspose(filters=3, kernel_size=(5, 5), 
-                                strides=(2, 2), padding='same', 
-                                use_bias=False, name="g_h4_a",
-                                activation='tanh')(h)
+                               strides=(2, 2), padding='same', 
+                               use_bias=False, name="g_h4_a",
+                               activation='tanh')(h)
     assert tuple(h.shape) == (None, 64, 64, 3)
 
     generator = tf.keras.Model(inputs=inputs, outputs=h, name="generator")
@@ -315,6 +316,7 @@ def make_discriminator_2_faces(output_shape):
                                    name="discriminator")
 
     return discriminator
+    
 def discriminator_loss(real_output, fake_output, cross_entropy):
     """ Compute the discriminator loss.
 
