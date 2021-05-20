@@ -93,11 +93,13 @@ def make_generator_1_faces(input_shape, output_shape):
     pair: make_discriminator_1_faces
     note: output_shape = (64,64,3)
     """
+    alpha = 0.3
+
     inputs = keras.Input(shape=input_shape, name="generator_input")
 
     z_proj = layers.Dense(4*4*1024, use_bias=False, name="g_h0_lin")(inputs)
     h = layers.BatchNormalization(name="g_h0_lin_bn")(z_proj)
-    h = layers.LeakyReLU(name="g_h0_lin_a")(h)
+    h = layers.LeakyReLU(alpha=alpha, name="g_h0_lin_a")(h)
     h = layers.Reshape((4, 4, 1024), name="g_h0_a")(h)
     # Note: None is the batch size
     assert tuple(h.shape) == (None, 4, 4, 1024)
@@ -106,14 +108,14 @@ def make_generator_1_faces(input_shape, output_shape):
                                      strides=(2, 2), padding='same', 
                                      use_bias=False, name="g_h1")(h)
     h = layers.BatchNormalization(name="g_h1_bn")(h)
-    h = layers.LeakyReLU(name="g_h1_a")(h)
+    h = layers.LeakyReLU(alpha=alpha, name="g_h1_a")(h)
     assert tuple(h.shape) == (None, 8, 8, 512)
 
     h = layers.Conv2DTranspose(filters=256, kernel_size=(5, 5), 
                                      strides=(2, 2), padding='same', 
                                      use_bias=False, name="g_h2")(h)
     h = layers.BatchNormalization(name="g_h2_bn")(h)
-    h = layers.LeakyReLU(name="g_h2_a")(h)
+    h = layers.LeakyReLU(alpha=alpha, name="g_h2_a")(h)
     assert tuple(h.shape) == (None, 16, 16, 256)
 
 
@@ -122,7 +124,7 @@ def make_generator_1_faces(input_shape, output_shape):
                                      strides=(2, 2), padding='same', 
                                      use_bias=False, name="g_h3")(h)
     h = layers.BatchNormalization(name="g_h3_bn")(h)
-    h = layers.LeakyReLU(name="g_h3_a")(h)
+    h = layers.LeakyReLU(alpha=alpha, name="g_h3_a")(h)
     assert tuple(h.shape) == (None, 32, 32, 128)
 
     h = layers.Conv2DTranspose(filters=3, kernel_size=(5, 5), 
@@ -161,27 +163,30 @@ def make_discriminator_1_faces(output_shape):
     pair: make_generator_1_faces
     note: output_shape = (64,64,3)
     """
+    alpha = 0.3
+    rate = 0.3
+
     outputs = keras.Input(shape=output_shape, name="discriminator_input")
     
     h = layers.Conv2D(filters=128, kernel_size=(5, 5), strides=(2, 2), 
                       padding='same', name="d_h0")(outputs)
-    h = layers.LeakyReLU(alpha=0.3)(h)
-    h = layers.Dropout(rate=0.3)(h)
+    h = layers.LeakyReLU(alpha=alpha)(h)
+    h = layers.Dropout(rate=rate)(h)
 
     h = layers.Conv2D(filters=256, kernel_size=(5, 5), strides=(2, 2), 
                       padding='same', name="d_h1")(h)
-    h = layers.LeakyReLU(alpha=0.3)(h)
-    h = layers.Dropout(rate=0.3)(h)
+    h = layers.LeakyReLU(alpha=alpha)(h)
+    h = layers.Dropout(rate=rate)(h)
 
     h = layers.Conv2D(filters=512, kernel_size=(5, 5), strides=(2, 2), 
                       padding='same', name="d_h2")(h)
-    h = layers.LeakyReLU(alpha=0.3)(h)
-    h = layers.Dropout(rate=0.3)(h)
+    h = layers.LeakyReLU(alpha=alpha)(h)
+    h = layers.Dropout(rate=rate)(h)
 
     h = layers.Conv2D(filters=1024, kernel_size=(5, 5), strides=(2, 2), 
                       padding='same', name="d_h3")(h)
-    h = layers.LeakyReLU(alpha=0.3)(h)
-    h = layers.Dropout(rate=0.3)(h)
+    h = layers.LeakyReLU(alpha=alpha)(h)
+    h = layers.Dropout(rate=rate)(h)
 
     h = layers.Flatten(name="d_h4_lin")(h)
     h = layers.Dense(units=1)(h)
@@ -219,11 +224,13 @@ def make_generator_2_faces(input_shape, output_shape):
     pair: make_discriminator_2_faces
     note: output_shape = (32,32,3)
     """
+    alpha = 0.3
+
     inputs = keras.Input(shape=input_shape, name="generator_input")
 
     z_proj = layers.Dense(4*4*256, use_bias=False, name="g_h0_lin")(inputs)
     h = layers.BatchNormalization(name="g_h0_lin_bn")(z_proj)
-    h = layers.LeakyReLU(name="g_h0_lin_a")(h)
+    h = layers.LeakyReLU(alpha=alpha, name="g_h0_lin_a")(h)
     h = layers.Reshape((4, 4, 256), name="g_h0_a")(h)
     # Note: None is the batch size
     assert tuple(h.shape) == (None, 4, 4, 256)
@@ -232,14 +239,14 @@ def make_generator_2_faces(input_shape, output_shape):
                                      strides=(2, 2), padding='same', 
                                      use_bias=False, name="g_h1")(h)
     h = layers.BatchNormalization(name="g_h1_bn")(h)
-    h = layers.LeakyReLU(name="g_h1_a")(h)
+    h = layers.LeakyReLU(alpha=alpha, name="g_h1_a")(h)
     assert tuple(h.shape) == (None, 8, 8, 256)
 
     h = layers.Conv2DTranspose(filters=128, kernel_size=(5, 5), 
                                      strides=(2, 2), padding='same', 
                                      use_bias=False, name="g_h2")(h)
     h = layers.BatchNormalization(name="g_h2_bn")(h)
-    h = layers.LeakyReLU(name="g_h2_a")(h)
+    h = layers.LeakyReLU(alpha=alpha, name="g_h2_a")(h)
     assert tuple(h.shape) == (None, 16, 16, 128)
 
 
@@ -248,7 +255,7 @@ def make_generator_2_faces(input_shape, output_shape):
                                      strides=(2, 2), padding='same', 
                                      use_bias=False, name="g_h3")(h)
     h = layers.BatchNormalization(name="g_h3_bn")(h)
-    h = layers.LeakyReLU(name="g_h3_a")(h)
+    h = layers.LeakyReLU(alpha=alpha, name="g_h3_a")(h)
     assert tuple(h.shape) == (None, 32, 32, 64)
 
     h = layers.Conv2DTranspose(filters=3, kernel_size=(5, 5), 
@@ -287,27 +294,30 @@ def make_discriminator_2_faces(output_shape):
     pair: make_generator_2_faces
     note: output_shape = (32,32,3)
     """
+    alpha = 0.3
+    rate = 0.3
+
     outputs = keras.Input(shape=output_shape, name="discriminator_input")
     
     h = layers.Conv2D(filters=64, kernel_size=(5, 5), strides=(2, 2), 
                       padding='same', name="d_h0")(outputs)
-    h = layers.LeakyReLU(alpha=0.3)(h)
-    h = layers.Dropout(rate=0.3)(h)
+    h = layers.LeakyReLU(alpha=alpha)(h)
+    h = layers.Dropout(rate=rate)(h)
 
     h = layers.Conv2D(filters=128, kernel_size=(5, 5), strides=(2, 2), 
                       padding='same', name="d_h1")(h)
-    h = layers.LeakyReLU(alpha=0.3)(h)
-    h = layers.Dropout(rate=0.3)(h)
+    h = layers.LeakyReLU(alpha=alpha)(h)
+    h = layers.Dropout(rate=rate)(h)
 
     h = layers.Conv2D(filters=256, kernel_size=(5, 5), strides=(2, 2), 
                       padding='same', name="d_h2")(h)
-    h = layers.LeakyReLU(alpha=0.3)(h)
-    h = layers.Dropout(rate=0.3)(h)
+    h = layers.LeakyReLU(alpha=alpha)(h)
+    h = layers.Dropout(rate=rate)(h)
 
     h = layers.Conv2D(filters=256, kernel_size=(5, 5), strides=(2, 2), 
                       padding='same', name="d_h3")(h)
-    h = layers.LeakyReLU(alpha=0.3)(h)
-    h = layers.Dropout(rate=0.3)(h)
+    h = layers.LeakyReLU(alpha=alpha)(h)
+    h = layers.Dropout(rate=rate)(h)
 
     h = layers.Flatten(name="d_h4_lin")(h)
     h = layers.Dense(units=1)(h)
@@ -316,7 +326,7 @@ def make_discriminator_2_faces(output_shape):
                                    name="discriminator")
 
     return discriminator
-    
+
 def discriminator_loss(real_output, fake_output, cross_entropy):
     """ Compute the discriminator loss.
 
@@ -887,7 +897,7 @@ if __name__ == "__main__":
     """
     
     # Train on faces
-
+    data_directory_faces = "C:/Users/Jakob/OneDrive/Skrivbord/Skrivbord/DL_proj/celeba_gan/img_align_celeba"
     # get image normalizer and inverse normlaizer
     image_normalizer_typ = "tanh"
     normalizer_faces = image_normalizer(image_normalizer_typ)
@@ -895,24 +905,24 @@ if __name__ == "__main__":
 
     # load dataset (shuffled, pre-processed, batched, and pre-fetched)
     # original shape = (218, 178, 3)
-    resize_to = (32, 32)
+    resize_to = (64, 64)
+    kwargs = {"data_directory": data_directory_faces, 
+              "resize_to": resize_to,
+              "reduce_to": None,
+              "normalizer": normalizer_faces}
 
-    # Data cant be stored in repo, insert your own data dirr
-    data_directory = "C:/Users/Jakob/OneDrive/Skrivbord/Skrivbord/DL_proj/celeba_gan/img_align_celeba"
-    
-    kwargs = {"data_directory": data_directory, 
-            "resize_to": resize_to,
-            "reduce_to": None,
-            "normalizer": normalizer_faces}
     dataset_name = "faces"
     batch_size = 64
     dataset, dataset_size = data_pipeline_load(dataset_name, **kwargs)    
-    dataset, dataset_size, dataset_fid, fid_size = data_pipeline_pre_train(dataset, dataset_size, batch_size, fid_split=0.1)
+    dataset, dataset_size, dataset_fid, fid_size = \
+      data_pipeline_pre_train(dataset, dataset_size, batch_size, fid_split=0.005)
+
+    base_path = "../src"
 
     # tensorboard logs are saved here
     current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
     experiment_id = current_time + "-" + dataset_name
-    log_dir = os.path.join('logs', experiment_id)
+    log_dir = os.path.join(base_path, 'logs', experiment_id)
     os.makedirs(log_dir, exist_ok=True)
 
     train_log_dir = os.path.join(log_dir, "train")
@@ -921,29 +931,45 @@ if __name__ == "__main__":
     gen_summary_writer = tf.summary.create_file_writer(gen_log_dir)
 
     # training chekcpoints are saved here
-    checkpoint_dir = os.path.join('training_checkpoints', experiment_id)
+    checkpoint_dir = os.path.join(base_path, 'training_checkpoints', experiment_id)
     checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
 
     # generated images are saved here
-    viz_save_path = os.path.join("assets", experiment_id)
+    viz_save_path = os.path.join(base_path, "assets", experiment_id)
     os.makedirs(viz_save_path, exist_ok=True)
 
     # full saved models come here
-    saved_generator_dir = os.path.join('saved_models', "generator", experiment_id)
-    saved_generator_path = os.path.join(saved_generator_dir, "generator.h5")
-    saved_discriminator_dir = os.path.join('saved_models', "discriminator", experiment_id)
-    saved_discriminator_path = os.path.join(saved_discriminator_dir, "discriminator.h5")
+    saved_generator_dir = \
+      os.path.join(base_path, 'saved_models', "generator", experiment_id)
+    saved_generator_path = \
+      os.path.join(saved_generator_dir, "generator.h5")
+    saved_discriminator_dir = \
+      os.path.join(base_path, 'saved_models', "discriminator", experiment_id)
+    saved_discriminator_path = \
+      os.path.join(saved_discriminator_dir, "discriminator.h5")
 
     # make generator and discriminator
     latent_dim = 100
     input_shape = (latent_dim,)
-    output_shape = (32, 32, 3)
-    generator = make_generator_2_faces(input_shape, output_shape)
-    discriminator = make_discriminator_2_faces(output_shape)
+    output_shape = (64, 64, 3)
+    generator = make_generator_1_faces(input_shape, output_shape)
+    discriminator = make_discriminator_1_faces(output_shape)
 
     # make optimizers
-    generator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
-    discriminator_optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-07)
+    learning_rate = 1e-4
+    beta_1 = 0.9
+
+    generator_optimizer = \
+      tf.keras.optimizers.Adam(learning_rate=learning_rate, 
+                              beta_1=beta_1, 
+                              beta_2=0.999, 
+                              epsilon=1e-07)
+      
+    discriminator_optimizer = \
+      tf.keras.optimizers.Adam(learning_rate=learning_rate, 
+                              beta_1=beta_1, 
+                              beta_2=0.999, 
+                              epsilon=1e-07)
 
     # make training metrics
     gen_loss_metric = tf.keras.metrics.Mean('gen_loss_metric', dtype=tf.float32)
@@ -959,7 +985,7 @@ if __name__ == "__main__":
     cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
     # some config
-    epochs = 500
+    epochs = 75
     # as defined before for loading and batching the dataset
     assert batch_size == 64
     num_examples_to_generate = 16
