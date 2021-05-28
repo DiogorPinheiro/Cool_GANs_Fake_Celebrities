@@ -20,7 +20,7 @@ Download the data sets either from [original source](http://mmlab.ie.cuhk.edu.hk
 ## Final Result
 
 ### Best Model 
-V
+
     - Learning Rate: 1e-4
     - Beta1 : 0.5
     - Batch Size : 128
