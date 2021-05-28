@@ -1,5 +1,5 @@
 # Cool GANs and Fake Celebrities
-Final project for DD2424 Deep Learning in Data Science at the KTH Royal Institute of Technology, Stockholm.
+Final project for DD2424 Deep Learning in Data Science at KTH Royal Institute of Technology, Stockholm.
 
 Create fake human faces with DCGANs. Evaluation performed using Fréchet Inception Distance (FID).
 
